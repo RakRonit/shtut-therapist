@@ -1,26 +1,56 @@
-<!DOCTYPE html>
-<html lang="he">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>שטות נהיית תרפיסטית</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <header>
-    <h1>שטות נהיית תרפיסטית 🐾</h1>
-    <nav>
-      <a href="#" id="homeLink">בית</a>
-      <a href="#" id="modulesLink">מודולים</a>
-      <a href="#" id="weeklyLink">לוח שבועי</a>
-    </nav>
-  </header>
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>שטות נהיית תרפיסטית</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>שטות נהיית תרפיסטית</h1>
+      <p class="subtitle">מסלול למידה וכלבנות טיפולית לכלבה ריאקטיבית ורגישה</p>
+      <nav class="top-nav">
+        <button class="nav-button active" data-view="modules">תכנית למידה</button>
+        <button class="nav-button" data-view="weekly">לוח שבועי</button>
+      </nav>
+    </header>
 
-  <main id="content">
-    ברוכה הבאה לתכנית הלמידה של שטות!
-  </main>
+    <main class="layout">
+      <aside class="sidebar" id="sidebar">
+        <h2 class="sidebar-title">מודולים</h2>
+        <div id="module-list" class="module-list"></div>
+      </aside>
 
-  <script src="script.js"></script>
-</body>
+      <section class="content">
+        <div id="modules-view" class="view-panel">
+          <div id="module-details" class="module-details">
+            <p>בחרי מודול בצד ימין כדי לראות משימות ותתי־משימות.</p>
+          </div>
+        </div>
+
+        <div id="weekly-view" class="view-panel hidden">
+          <div class="weekly-header">
+            <h2>לוח שבועי</h2>
+            <div class="weekly-controls">
+              <label>
+                בחרי תאריך בשבוע:
+                <input type="date" id="week-date-picker" />
+              </label>
+              <button id="prev-week" class="small-button">שבוע קודם</button>
+              <button id="next-week" class="small-button">שבוע הבא</button>
+            </div>
+            <p class="weekly-info" id="weekly-range-label"></p>
+          </div>
+          <div id="weekly-grid" class="weekly-grid"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <small>© שטות נהיית תרפיסטית – גרסת בסיס. אפשר לערוך ולהרחיב חופשי.</small>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
 </html>
-
