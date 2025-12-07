@@ -270,7 +270,7 @@ function saveJson(key, data) {
 
 let progressState = loadJson(STORAGE_KEY_PROGRESS);
 
-// weeklyPlan = { [weekStartISO]: { [dayOffset0-6]: [{moduleId, taskId}] } }
+// weeklyPlan = { [weekStartISO]: { [dayOffset0-6]: [{moduleId, taskId, success?, note?}] } }
 let weeklyPlan = loadJson(STORAGE_KEY_WEEKLY);
 
 // -----------------------------
@@ -303,8 +303,7 @@ function formatDateShort(date) {
 }
 
 function getWeekStart(date) {
-  // יום ראשון = 0
-  const day = date.getDay(); // ב-JS: 0=Sunday
+  const day = date.getDay(); // 0=Sunday
   const diff = day; // כמה ימים לחזור אחורה להגיע לראשון
   const start = new Date(date);
   start.setDate(start.getDate() - diff);
@@ -529,6 +528,10 @@ function renderWeeklyView() {
         const planDiv = document.createElement("div");
         planDiv.className = "plan-item";
 
+        // כותרת – שם המשימה + מחיקה
+        const headerRow = document.createElement("div");
+        headerRow.className = "plan-header-row";
+
         const mod = modules.find((m) => m.id === p.moduleId);
         const task = mod?.tasks.find((t) => t.id === p.taskId);
         const text = task ? `${mod.name} – ${task.title}` : "תרגול";
@@ -550,14 +553,66 @@ function renderWeeklyView() {
           renderWeeklyView();
         });
 
-        planDiv.appendChild(textSpan);
-        planDiv.appendChild(removeBtn);
+        headerRow.appendChild(textSpan);
+        headerRow.appendChild(removeBtn);
+        planDiv.appendChild(headerRow);
+
+        // חלק נוסף – אחוזי הצלחה + הערות
+        const extraDiv = document.createElement("div");
+        extraDiv.className = "plan-extra";
+
+        // אחוזי הצלחה
+        const progressRow = document.createElement("div");
+        progressRow.className = "plan-progress-row";
+
+        const progressLabel = document.createElement("span");
+        progressLabel.textContent = "הצלחה:";
+
+        const percentSpan = document.createElement("span");
+        percentSpan.className = "plan-percent-label";
+        const initialValue = typeof p.success === "number" ? p.success : 0;
+        percentSpan.textContent = `${initialValue}%`;
+
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.min = "0";
+        slider.max = "100";
+        slider.value = initialValue;
+        slider.className = "plan-slider";
+
+        slider.addEventListener("input", () => {
+          const val = Number(slider.value);
+          p.success = val;
+          percentSpan.textContent = `${val}%`;
+          saveJson(STORAGE_KEY_WEEKLY, weeklyPlan);
+        });
+
+        progressRow.appendChild(progressLabel);
+        progressRow.appendChild(percentSpan);
+        progressRow.appendChild(slider);
+
+        // שדה הערות
+        const note = document.createElement("textarea");
+        note.className = "plan-note";
+        note.placeholder = "הערות / חיזוקים לתרגול הבא";
+        note.value = p.note || "";
+
+        note.addEventListener("change", () => {
+          p.note = note.value;
+          saveJson(STORAGE_KEY_WEEKLY, weeklyPlan);
+        });
+
+        extraDiv.appendChild(progressRow);
+        extraDiv.appendChild(note);
+        planDiv.appendChild(extraDiv);
+
         plansEl.appendChild(planDiv);
       });
     }
 
     card.appendChild(plansEl);
 
+    // בלוק הוספת תרגול
     const addDiv = document.createElement("div");
     addDiv.className = "add-plan";
 
@@ -580,7 +635,7 @@ function renderWeeklyView() {
     addBtn.addEventListener("click", () => {
       if (!select.value) return;
       const [moduleId, taskId] = select.value.split("::");
-      const newEntry = { moduleId, taskId };
+      const newEntry = { moduleId, taskId, success: 0, note: "" };
       const arr = plan[dayKey] || [];
       arr.push(newEntry);
       plan[dayKey] = arr;
@@ -626,7 +681,6 @@ function setView(view) {
 renderModuleList(modules[0]?.id);
 renderModuleDetails(modules[0]?.id);
 
-// ניווט עליון
 navButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
     const v = btn.dataset.view;
