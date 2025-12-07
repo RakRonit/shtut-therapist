@@ -270,7 +270,11 @@ function saveJson(key, data) {
 
 let progressState = loadJson(STORAGE_KEY_PROGRESS);
 
-// weeklyPlan = { [weekStartISO]: { [dayOffset0-6]: [{moduleId, taskId, success?, note?}] } }
+// weeklyPlan = {
+//   [weekStartISO]: {
+//      [dayOffset0-6]: [{moduleId, taskId, success?, note?, focusStart?, time?, preferredTime?}]
+//   }
+// }
 let weeklyPlan = loadJson(STORAGE_KEY_WEEKLY);
 
 // -----------------------------
@@ -287,6 +291,7 @@ const navButtons = document.querySelectorAll(".nav-button");
 const weekDatePicker = document.getElementById("week-date-picker");
 const weeklyRangeLabel = document.getElementById("weekly-range-label");
 const weeklyGridEl = document.getElementById("weekly-grid");
+const weeklySummaryEl = document.getElementById("weekly-summary");
 const prevWeekBtn = document.getElementById("prev-week");
 const nextWeekBtn = document.getElementById("next-week");
 
@@ -304,7 +309,7 @@ function formatDateShort(date) {
 
 function getWeekStart(date) {
   const day = date.getDay(); // 0=Sunday
-  const diff = day; // כמה ימים לחזור אחורה להגיע לראשון
+  const diff = day;
   const start = new Date(date);
   start.setDate(start.getDate() - diff);
   start.setHours(0, 0, 0, 0);
@@ -342,6 +347,21 @@ function getAllTaskOptions() {
     });
   });
   return options;
+}
+
+function focusLabel(value) {
+  switch (value) {
+    case "calm":
+      return "רגועה ומרוכזת";
+    case "partial":
+      return "מרוכזת חלקית";
+    case "distracted":
+      return "מוסחת";
+    case "overwhelmed":
+      return "מוצפת / קשה להתחבר";
+    default:
+      return "";
+  }
 }
 
 // -----------------------------
@@ -557,9 +577,97 @@ function renderWeeklyView() {
         headerRow.appendChild(removeBtn);
         planDiv.appendChild(headerRow);
 
-        // חלק נוסף – אחוזי הצלחה + הערות
+        // חלק נוסף – שעה + זמן מועדף + ריכוז + אחוזי הצלחה + הערות
         const extraDiv = document.createElement("div");
         extraDiv.className = "plan-extra";
+
+        // שעה + זמן מועדף
+        const timeRow = document.createElement("div");
+        timeRow.className = "plan-progress-row";
+
+        const timeLabel = document.createElement("span");
+        timeLabel.textContent = "שעה:";
+
+        const timeInput = document.createElement("input");
+        timeInput.type = "time";
+        timeInput.value = p.time || "";
+        timeInput.style.background = "#020617";
+        timeInput.style.color = "#e5e7eb";
+        timeInput.style.borderRadius = "999px";
+        timeInput.style.border = "1px solid rgba(148,163,184,0.6)";
+        timeInput.style.padding = "0.05rem 0.4rem";
+        timeInput.style.fontSize = "0.72rem";
+
+        timeInput.addEventListener("change", () => {
+          p.time = timeInput.value;
+          saveJson(STORAGE_KEY_WEEKLY, weeklyPlan);
+        });
+
+        const prefLabelWrap = document.createElement("label");
+        prefLabelWrap.style.display = "inline-flex";
+        prefLabelWrap.style.alignItems = "center";
+        prefLabelWrap.style.gap = "0.2rem";
+        prefLabelWrap.style.fontSize = "0.72rem";
+
+        const prefCheckbox = document.createElement("input");
+        prefCheckbox.type = "checkbox";
+        prefCheckbox.checked = Boolean(p.preferredTime);
+
+        prefCheckbox.addEventListener("change", () => {
+          p.preferredTime = prefCheckbox.checked;
+          saveJson(STORAGE_KEY_WEEKLY, weeklyPlan);
+        });
+
+        const prefText = document.createElement("span");
+        prefText.textContent = "זמן מועדף";
+
+        prefLabelWrap.appendChild(prefCheckbox);
+        prefLabelWrap.appendChild(prefText);
+
+        timeRow.appendChild(timeLabel);
+        timeRow.appendChild(timeInput);
+        timeRow.appendChild(prefLabelWrap);
+
+        // שורת ריכוז בתחילת פעילות
+        const focusRow = document.createElement("div");
+        focusRow.className = "plan-progress-row";
+
+        const focusLabel = document.createElement("span");
+        focusLabel.textContent = "ריכוז בתחילת התרגול:";
+
+        const focusSelect = document.createElement("select");
+        focusSelect.style.flex = "1";
+        focusSelect.style.fontSize = "0.72rem";
+        focusSelect.style.background = "#020617";
+        focusSelect.style.color = "#e5e7eb";
+        focusSelect.style.borderRadius = "999px";
+        focusSelect.style.border = "1px solid rgba(148,163,184,0.6)";
+        focusSelect.style.padding = "0.05rem 0.4rem";
+
+        const focusOptions = [
+          { value: "", label: "לא נבחר" },
+          { value: "calm", label: "רגועה ומרוכזת" },
+          { value: "partial", label: "מרוכזת חלקית" },
+          { value: "distracted", label: "מוסחת" },
+          { value: "overwhelmed", label: "מוצפת / קשה להתחבר" },
+        ];
+
+        focusOptions.forEach((opt) => {
+          const o = document.createElement("option");
+          o.value = opt.value;
+          o.textContent = opt.label;
+          focusSelect.appendChild(o);
+        });
+
+        focusSelect.value = p.focusStart || "";
+
+        focusSelect.addEventListener("change", () => {
+          p.focusStart = focusSelect.value;
+          saveJson(STORAGE_KEY_WEEKLY, weeklyPlan);
+        });
+
+        focusRow.appendChild(focusLabel);
+        focusRow.appendChild(focusSelect);
 
         // אחוזי הצלחה
         const progressRow = document.createElement("div");
@@ -602,6 +710,8 @@ function renderWeeklyView() {
           saveJson(STORAGE_KEY_WEEKLY, weeklyPlan);
         });
 
+        extraDiv.appendChild(timeRow);
+        extraDiv.appendChild(focusRow);
         extraDiv.appendChild(progressRow);
         extraDiv.appendChild(note);
         planDiv.appendChild(extraDiv);
@@ -635,7 +745,15 @@ function renderWeeklyView() {
     addBtn.addEventListener("click", () => {
       if (!select.value) return;
       const [moduleId, taskId] = select.value.split("::");
-      const newEntry = { moduleId, taskId, success: 0, note: "" };
+      const newEntry = {
+        moduleId,
+        taskId,
+        success: 0,
+        note: "",
+        focusStart: "",
+        time: "",
+        preferredTime: false,
+      };
       const arr = plan[dayKey] || [];
       arr.push(newEntry);
       plan[dayKey] = arr;
@@ -651,6 +769,171 @@ function renderWeeklyView() {
 
     weeklyGridEl.appendChild(card);
   }
+
+  renderWeeklySummary(weekStart, weekKey, plan);
+}
+
+// -----------------------------
+// Weekly summary (שבועי + מצטבר)
+// -----------------------------
+
+function renderWeeklySummary(weekStart, weekKey, plan) {
+  if (!weeklySummaryEl) return;
+
+  // בנייה של רשימות התרגולים בשבוע הנוכחי
+  const weekRows = [];
+  for (let i = 0; i < 7; i++) {
+    const dayKey = String(i);
+    const dayDate = addDays(weekStart, i);
+    const dayPlans = plan[dayKey] || [];
+    dayPlans.forEach((p) => {
+      const mod = modules.find((m) => m.id === p.moduleId);
+      const task = mod?.tasks.find((t) => t.id === p.taskId);
+      weekRows.push({
+        weekday: weekdayNames[i],
+        dateStr: formatDateShort(dayDate),
+        moduleName: mod?.name || "",
+        taskTitle: task?.title || "",
+        focus: focusLabel(p.focusStart),
+        success: typeof p.success === "number" ? p.success : null,
+        time: p.time || "",
+        preferredTime: !!p.preferredTime,
+        note: p.note || "",
+      });
+    });
+  }
+
+  // בנייה של סיכום מצטבר לכל התקופה
+  const aggregateMap = {};
+  Object.keys(weeklyPlan).forEach((wk) => {
+    const w = weeklyPlan[wk] || {};
+    for (let i = 0; i < 7; i++) {
+      const dayKey = String(i);
+      const arr = w[dayKey] || [];
+      arr.forEach((p) => {
+        const key = `${p.moduleId}::${p.taskId}`;
+        if (!aggregateMap[key]) {
+          const mod = modules.find((m) => m.id === p.moduleId);
+          const task = mod?.tasks.find((t) => t.id === p.taskId);
+          aggregateMap[key] = {
+            moduleName: mod?.name || "",
+            taskTitle: task?.title || "",
+            count: 0,
+            successSum: 0,
+            successCount: 0,
+          };
+        }
+        const agg = aggregateMap[key];
+        agg.count += 1;
+        if (typeof p.success === "number") {
+          agg.successSum += p.success;
+          agg.successCount += 1;
+        }
+      });
+    }
+  });
+
+  const aggregateRows = Object.values(aggregateMap).map((agg) => {
+    const avg =
+      agg.successCount > 0 ? Math.round(agg.successSum / agg.successCount) : null;
+    return {
+      moduleName: agg.moduleName,
+      taskTitle: agg.taskTitle,
+      count: agg.count,
+      avgSuccess: avg,
+    };
+  });
+
+  let html = "";
+
+  // כרטיס סיכום שבועי
+  html += `<div class="weekly-summary-card">
+    <h3>סיכום השבוע הנבחר</h3>`;
+
+  if (weekRows.length === 0) {
+    html += `<p style="font-size:0.78rem;color:var(--muted);margin:0;">
+      אין עדיין תרגולים בשבוע זה.
+    </p>`;
+  } else {
+    html += `<div class="summary-table-wrapper">
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th>יום</th>
+            <th>תאריך</th>
+            <th>מודול</th>
+            <th>משימה</th>
+            <th>שעה</th>
+            <th>זמן מועדף</th>
+            <th>ריכוז</th>
+            <th>הצלחה</th>
+            <th>הערות</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    weekRows.forEach((r) => {
+      html += `<tr>
+        <td>${r.weekday}</td>
+        <td>${r.dateStr}</td>
+        <td>${r.moduleName}</td>
+        <td>${r.taskTitle}</td>
+        <td>${r.time || ""}</td>
+        <td>${r.preferredTime ? "✔" : ""}</td>
+        <td>${r.focus || ""}</td>
+        <td>${r.success != null ? r.success + "%" : ""}</td>
+        <td class="summary-note">${r.note ? r.note : ""}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+  }
+
+  html += `</div>`;
+
+  // כרטיס סיכום מצטבר
+  html += `<div class="weekly-summary-card">
+    <h3>סיכום מצטבר (כל התקופה במכשיר)</h3>`;
+
+  if (aggregateRows.length === 0) {
+    html += `<p style="font-size:0.78rem;color:var(--muted);margin:0;">
+      עדיין לא נשמרו תרגולים.
+    </p>`;
+  } else {
+    // אפשר למיין קצת – למשל לפי מודול
+    aggregateRows.sort((a, b) =>
+      (a.moduleName + a.taskTitle).localeCompare(b.moduleName + b.taskTitle, "he")
+    );
+
+    html += `<div class="summary-table-wrapper">
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th>מודול</th>
+            <th>משימה</th>
+            <th>מס׳ תרגולים</th>
+            <th>ממוצע הצלחה</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    aggregateRows.forEach((r) => {
+      html += `<tr>
+        <td>${r.moduleName}</td>
+        <td>${r.taskTitle}</td>
+        <td>${r.count}</td>
+        <td>${r.avgSuccess != null ? r.avgSuccess + "%" : ""}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+  }
+
+  html += `</div>`;
+
+  weeklySummaryEl.innerHTML = html;
 }
 
 // -----------------------------
